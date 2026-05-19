@@ -172,21 +172,35 @@
         const dataUrl = canvas.toDataURL('image/png');
         setSignatureImage(dataUrl);
 
-        // 组装表单数据
-        const submissionData = {
-          customerName: formData.customerName,
-          email: formData.email || "Not provided",
-          phone: formData.phone || "Not provided",
-          address: formData.address,
-          installDate: formData.installDate,
+        // 获取同意的选项标签
+        const agreedConsentsList = Object.keys(consents)
+          .filter(k => consents[k])
+          .map(k => consentOptions.find(opt => opt.id === k)?.label)
+          .filter(Boolean);
+
+        // 组装JSON格式数据
+        const jsonData = {
+          submissionDate: new Date().toISOString(),
+          customer: {
+            name: formData.customerName,
+            address: formData.address,
+            email: formData.email || "Not provided",
+            phone: formData.phone || "Not provided",
+            installationDate: formData.installDate
+          },
           commercialStatus: formData.commercialStatus,
-          agreedConsents: Object.keys(consents).filter(k => consents[k]).join(', ') || "None selected",
-          signatureBase64: dataUrl,
-          submissionDate: new Date().toLocaleDateString('en-GB')
+          consents: {
+            agreedConsents: agreedConsentsList.length > 0 ? agreedConsentsList : ["None selected"],
+            consentCount: agreedConsentsList.length
+          },
+          signature: {
+            format: "image/png",
+            dataUrl: dataUrl
+          }
         };
 
-        // 使用 Formspree 发送到邮箱
-        const FORMSPREE_URL = "https://formspree.io/f/xjkbbaao";
+        // 使用 Formspree 发送
+        const FORMSPREE_URL = "https://formspree.io/f/xvzyolzw";
         
         try {
           const response = await fetch(FORMSPREE_URL, {
@@ -196,15 +210,18 @@
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              customerName: submissionData.customerName,
-              email: submissionData.email,
-              phone: submissionData.phone,
-              address: submissionData.address,
-              installDate: submissionData.installDate,
-              commercialStatus: submissionData.commercialStatus,
-              agreedConsents: submissionData.agreedConsents,
-              submissionDate: submissionData.submissionDate,
-              signature: dataUrl
+              _replyto: formData.email || 'jxy020714@gmail.com',
+              _subject: `New Consent Form Submission - ${formData.customerName}`,
+              formData: JSON.stringify(jsonData, null, 2),
+              customerName: formData.customerName,
+              email: formData.email || "Not provided",
+              phone: formData.phone || "Not provided",
+              address: formData.address,
+              installDate: formData.installDate,
+              commercialStatus: formData.commercialStatus,
+              agreedConsents: agreedConsentsList.length > 0 ? agreedConsentsList.join(', ') : "None selected",
+              submissionDate: new Date().toLocaleDateString('en-GB'),
+              signatureImage: dataUrl
             })
           });
           
